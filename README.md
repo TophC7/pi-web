@@ -13,6 +13,7 @@ Local browser UI for the [pi coding agent](https://github.com/earendil-works/pi)
 - **Session workspace**: browse, resume, rename, export, and delete conversations grouped by project, with running state, context usage, cost, and compaction details.
 - **Two ways to branch**: **New session** creates an independent session file from an earlier message; **Edit from here** creates a branch inside the current session.
 - **Project file tools**: browse and upload files, inspect Git diffs, and preview source, Markdown, images, audio, PDFs, and DOCX files with automatic refresh.
+- **Store-backed chat attachments**: dropped, pasted, and picked files keep their original bytes in the pi agent directory, outside the workspace, and insert absolute `@path` mentions. Supported raster images also go inline for vision. Session deletion prunes unreferenced originals after a 24-hour grace period. File explorer uploads still write to the chosen folder; existing sessions are not backfilled.
 - **Git worktrees**: switch checkouts from the sidebar while keeping sessions from the same repository grouped together.
 - **Web-based configuration**: manage provider login and API keys, models, model tests, plugin packages, and skills without leaving Pi Web.
 - **English, Simplified Chinese, and Traditional Chinese UI**: Pi Web follows the browser language initially and provides a language switcher in the top bar.

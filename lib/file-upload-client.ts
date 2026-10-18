@@ -18,6 +18,20 @@ export interface UploadResponse {
   error?: string;
 }
 
+/** Stored chat attachments returned by `POST /api/attachments`. */
+export interface AttachmentUploadResponse {
+  attachments: Array<{
+    index: number;
+    name: string;
+    path: string;
+    sha256: string;
+    size: number;
+    mimeType: string;
+  }>;
+  errors: Array<{ index: number; name: string; error: string }>;
+  error?: string;
+}
+
 /**
  * Uploads files into one directory through the file API.
  * @param targetDirectory The directory the files are written to
@@ -61,38 +75,64 @@ export function uploadFiles(
   });
 }
 
+/** Uploads original chat files to Pi-owned storage, outside the workspace. */
+export async function uploadAttachments(
+  files: File[],
+  onProgress?: (progress: number) => void,
+): Promise<{ status: number; data: AttachmentUploadResponse }> {
+  const { promise, resolve, reject } = Promise.withResolvers<{ status: number; data: AttachmentUploadResponse }>();
+  const formData = new FormData();
+  files.forEach((file) => formData.append("files", file, file.name));
+
+  const xhr = new XMLHttpRequest();
+  xhr.open("POST", "/api/attachments");
+  xhr.upload.onprogress = (event) => {
+    if (onProgress && event.lengthComputable && event.total > 0) {
+      onProgress(Math.round((event.loaded / event.total) * 100));
+    }
+  };
+  xhr.onerror = () => reject(new Error("Network error while uploading files"));
+  xhr.onabort = () => reject(new Error("Upload cancelled"));
+  xhr.onload = () => {
+    let data: AttachmentUploadResponse = { attachments: [], errors: [] };
+    try {
+      data = JSON.parse(xhr.responseText) as AttachmentUploadResponse;
+    } catch {
+      if (xhr.responseText) data.error = xhr.responseText;
+    }
+    resolve({ status: xhr.status, data });
+  };
+  xhr.send(formData);
+  return promise;
+}
+
+/** Absolute @mentions for stored attachments, in the supplied order. */
+export function attachmentMentionText(attachments: Array<{ path: string }>): string {
+  return attachments.map((attachment) => buildAtMentionText(attachment.path, false)).join("");
+}
+
+/** Whether the SDK can also receive this stored original as an inline image. */
+export function isInlineImage(file: Pick<File, "type">): boolean {
+  return file.type === "image/png" || file.type === "image/jpeg" ||
+    file.type === "image/gif" || file.type === "image/webp";
+}
+
 /** One file or folder dropped onto the chat. */
 export type DroppedItem = { kind: "file"; file: File } | { kind: "folder"; name: string };
 
 /**
- * Sorts a chat drop: images are attached to the prompt as before, other files
- * are uploaded into the working directory and mentioned, and folders are left
- * out because the upload endpoint takes files only.
+ * Collects every dropped file for store-backed attachments, including images.
+ * Folders are left out because the attachment endpoint takes files only.
  * @param items The dropped items, in drop order
- * @returns The images, the files to upload, and the names of skipped folders
+ * @returns Files in drop order and the names of skipped folders
  */
-export function splitDroppedItems(items: DroppedItem[]): { images: File[]; files: File[]; folders: string[] } {
-  const images: File[] = [];
+export function splitDroppedItems(items: DroppedItem[]): { files: File[]; folders: string[] } {
   const files: File[] = [];
   const folders: string[] = [];
   for (const item of items) {
     if (item.kind === "folder") folders.push(item.name);
-    else if (item.file.type.startsWith("image/")) images.push(item.file);
     else files.push(item.file);
   }
-  return { images, files, folders };
+  return { files, folders };
 }
 
-/**
- * The `@` mentions for files now in the working directory, in drop order.
- * @param files The dropped files
- * @param present Names the upload reports as written or already there
- * @returns Mentions ready to insert, or an empty string
- */
-export function dropMentionText(files: File[], present: string[]): string {
-  const names = new Set(present);
-  return files
-    .filter((file) => names.has(file.name))
-    .map((file) => buildAtMentionText(file.name, false))
-    .join("");
-}
