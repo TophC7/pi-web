@@ -18,17 +18,23 @@ export function parseUploadConflictStrategy(value: string | null): UploadConflic
     : null;
 }
 
+export function validateUploadFileName(fileName: string): string | null {
+  if (!fileName || fileName === "." || fileName === ".." || fileName.includes("\0")) {
+    return `Invalid file name: ${fileName || "(empty)"}`;
+  }
+  if (fileName.includes("/") || fileName.includes("\\") || path.basename(fileName) !== fileName) {
+    return `File names must not contain a path: ${fileName}`;
+  }
+  return null;
+}
+
 export function validateUploadFileNames(fileNames: string[]): string | null {
   if (fileNames.length === 0) return "No files selected";
 
   const seen = new Set<string>();
   for (const fileName of fileNames) {
-    if (!fileName || fileName === "." || fileName === ".." || fileName.includes("\0")) {
-      return `Invalid file name: ${fileName || "(empty)"}`;
-    }
-    if (fileName.includes("/") || fileName.includes("\\") || path.basename(fileName) !== fileName) {
-      return `File names must not contain a path: ${fileName}`;
-    }
+    const error = validateUploadFileName(fileName);
+    if (error) return error;
     if (seen.has(fileName)) return `Duplicate file name in upload: ${fileName}`;
     seen.add(fileName);
   }

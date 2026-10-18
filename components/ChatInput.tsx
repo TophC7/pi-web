@@ -1514,6 +1514,17 @@ export const ChatInput = memo(forwardRef<ChatInputHandle, Props>(function ChatIn
 
   const handlePaste = useCallback((e: React.ClipboardEvent<HTMLTextAreaElement>) => {
     const items = Array.from(e.clipboardData?.items ?? []);
+    if (onAttachFiles && !compact) {
+      const files = items
+        .filter((item) => item.kind === "file")
+        .map((item) => item.getAsFile())
+        .filter((file): file is File => file !== null);
+      if (files.length > 0) {
+        e.preventDefault();
+        onAttachFiles(files);
+        return;
+      }
+    }
     const imageItems = items.filter((item) => item.type.startsWith("image/"));
     if (!compact && imageItems.length) {
       e.preventDefault();
@@ -1552,7 +1563,7 @@ export const ChatInput = memo(forwardRef<ChatInputHandle, Props>(function ChatIn
       ta.focus();
       ta.setSelectionRange(start + markdown.length, start + markdown.length);
     });
-  }, [compact, processImageFiles, updateAtQuery]);
+  }, [compact, onAttachFiles, processImageFiles, updateAtQuery]);
 
   useEffect(() => {
     if (slashQuery === null) {

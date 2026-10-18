@@ -15,6 +15,7 @@
 
 import { readdirSync, readFileSync, unlinkSync, writeFileSync } from "fs";
 import { dirname, join } from "path";
+import { pruneUnreferencedAttachments } from "./attachments";
 import { abortSubagent, getRpcSession, getRpcSessionInfos, getRunningRpcSessionIds } from "./rpc-manager";
 import {
   invalidateSessionListCache,
@@ -245,5 +246,12 @@ export async function deleteSessions(
     console.warn(`[pi-web] could not clear the sidebar state of deleted sessions: ${error instanceof Error ? error.message : String(error)}`);
   }
   invalidateSessionListCache();
+  if (deletedSessionIds.size > 0) {
+    try {
+      await pruneUnreferencedAttachments();
+    } catch (error) {
+      console.warn(`[pi-web] could not prune attachments: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
   return { deleted: [...deletedSessionIds], missing, running };
 }
